@@ -24,6 +24,7 @@ public class FirebaseConfig {
                 .setCredentials(
                         GoogleCredentials.getApplicationDefault()
                 )
+                .setProjectId("breakloop-dfcc6")
                 .build();
 
         return FirebaseApp.initializeApp(options);
