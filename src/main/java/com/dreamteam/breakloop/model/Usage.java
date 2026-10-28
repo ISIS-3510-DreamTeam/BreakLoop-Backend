@@ -8,6 +8,7 @@ public class Usage {
     private int unlocks;
     private boolean partial;
     private Object updatedAt;
+    private long flaggedTimeMs;
 
     public Usage() {
     }
@@ -25,6 +26,18 @@ public class Usage {
         this.unlocks = unlocks;
         this.partial = partial;
         this.updatedAt = updatedAt;
+    }
+
+    public Usage(
+            String date,
+            long screenTimeMs,
+            int pickups,
+            int unlocks,
+            boolean partial,
+            Object updatedAt,
+            long flaggedTimeMs) {
+        this(date, screenTimeMs, pickups, unlocks, partial, updatedAt);
+        this.flaggedTimeMs = flaggedTimeMs;
     }
 
     public String getDate() {
@@ -73,5 +86,13 @@ public class Usage {
 
     public void setUpdatedAt(Object updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public long getFlaggedTimeMs() {
+        return flaggedTimeMs;
+    }
+
+    public void setFlaggedTimeMs(long flaggedTimeMs) {
+        this.flaggedTimeMs = flaggedTimeMs;
     }
 }
