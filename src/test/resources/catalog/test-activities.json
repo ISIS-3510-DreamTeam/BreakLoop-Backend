@@ -1,0 +1,8 @@
+[
+  {"id": "walk-park", "title": "Walk in the park", "category": "MOVE",
+   "durationMin": 15, "xp": 20, "prompt": "Take a short walk.", "outdoor": true,
+   "weather": ["CLEAR", "CLOUDY"], "timeOfDay": ["MORNING", "AFTERNOON"]},
+  {"id": "doodle", "title": "Doodle", "category": "CREATE",
+   "durationMin": 5, "xp": 10, "prompt": "Draw anything.", "outdoor": false,
+   "weather": ["CLEAR", "CLOUDY", "RAIN", "SNOW"], "timeOfDay": ["EVENING"]}
+]

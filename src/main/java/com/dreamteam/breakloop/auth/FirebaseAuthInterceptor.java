@@ -5,32 +5,29 @@ import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Requires {@code Authorization: Bearer <Firebase ID token>} whose uid
  * matches the {uid} of the route: 401 if missing or invalid, 403 on a
- * different uid. Only registered for the new endpoints (see WebConfig).
+ * different uid. Only registered for the new endpoints (see WebConfig), which builds it only when
+ * {@code breakloop.auth.enabled} is true.
  */
-@Component
-@ConditionalOnProperty(
-        name = "breakloop.auth.enabled",
-        havingValue = "true",
-        matchIfMissing = true)
 public class FirebaseAuthInterceptor implements HandlerInterceptor {
 
     private static final String BEARER = "Bearer ";
 
-    private final FirebaseAuth firebaseAuth;
+    // Resolved per request so a context without Firebase (such as a
+    // @WebMvcTest) still starts.
+    private final Supplier<FirebaseAuth> firebaseAuth;
 
-    public FirebaseAuthInterceptor(FirebaseAuth firebaseAuth) {
+    public FirebaseAuthInterceptor(Supplier<FirebaseAuth> firebaseAuth) {
         this.firebaseAuth = firebaseAuth;
     }
 
@@ -54,7 +51,7 @@ public class FirebaseAuthInterceptor implements HandlerInterceptor {
         FirebaseToken token;
 
         try {
-            token = firebaseAuth.verifyIdToken(
+            token = firebaseAuth.get().verifyIdToken(
                     header.substring(BEARER.length()).trim());
         } catch (FirebaseAuthException | IllegalArgumentException e) {
             return reject(response, 401, "Invalid token");
