@@ -5,23 +5,18 @@ import com.dreamteam.breakloop.model.ActivityCategory;
 import com.dreamteam.breakloop.model.ActivityLog;
 import com.dreamteam.breakloop.model.LogSource;
 import com.dreamteam.breakloop.model.TimeOfDay;
-import com.dreamteam.breakloop.repository.ActivityLogRepository;
+import com.dreamteam.breakloop.repository.InMemoryActivityLogRepository;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class ActivityLogServiceTest {
 
-    private final ActivityLogRepository repository =
-            mock(ActivityLogRepository.class);
+    private final InMemoryActivityLogRepository repository =
+            new InMemoryActivityLogRepository();
 
     private final ActivityLogService service = new ActivityLogService(
             repository,
@@ -61,15 +56,19 @@ class ActivityLogServiceTest {
 
     @Test
     void lateStartedWriteDoesNotEraseCompletion() {
-        when(repository.findById("u", "x"))
-                .thenReturn(Optional.of(log("x", 5_000L)));
+        service.upsert("u", "x", log("x", 5_000L));
 
+        ActivityLog result = service.upsert("u", "x", log("x", null));
+
+        assertEquals(5_000L, result.completedAt());
+        assertEquals(5_000L, repository.stored.get("x").completedAt());
+    }
+
+    @Test
+    void sameRequestTwiceLeavesOneDocument() {
+        service.upsert("u", "x", log("x", null));
         service.upsert("u", "x", log("x", null));
 
-        ArgumentCaptor<ActivityLog> saved =
-                ArgumentCaptor.forClass(ActivityLog.class);
-        verify(repository).save(org.mockito.ArgumentMatchers.eq("u"),
-                saved.capture());
-        assertEquals(5_000L, saved.getValue().completedAt());
+        assertEquals(1, repository.stored.size());
     }
 }

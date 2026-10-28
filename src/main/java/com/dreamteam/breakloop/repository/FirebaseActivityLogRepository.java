@@ -11,16 +11,15 @@ import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
-import com.google.cloud.firestore.WriteBatch;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 
 import static com.dreamteam.breakloop.repository.FirestoreFields.BATCH_SIZE;
 import static com.dreamteam.breakloop.repository.FirestoreFields.getEnum;
@@ -78,60 +77,79 @@ public class FirebaseActivityLogRepository implements ActivityLogRepository {
     }
 
     @Override
-    public Map<String, ActivityLog> findByIds(
-            String uid, Collection<String> ids) {
+    public Optional<ActivityLog> upsert(
+            String uid, ActivityLog incoming,
+            BiFunction<ActivityLog, ActivityLog, Optional<ActivityLog>> resolver) {
         try {
-            List<DocumentReference> refs = ids.stream()
-                    .map(collection(uid)::document)
-                    .toList();
+            return firestore.runTransaction(tx -> {
+                DocumentReference ref =
+                        collection(uid).document(incoming.id());
+                DocumentSnapshot snapshot = tx.get(ref).get();
 
-            Map<String, ActivityLog> result = new HashMap<>();
+                ActivityLog toStore = incoming;
 
-            for (int i = 0; i < refs.size(); i += BATCH_SIZE) {
-                var chunk = refs.subList(
-                        i, Math.min(i + BATCH_SIZE, refs.size()));
+                if (snapshot.exists()) {
+                    Optional<ActivityLog> resolved =
+                            resolver.apply(fromDocument(snapshot), incoming);
 
-                for (var document : firestore.getAll(
-                        chunk.toArray(new DocumentReference[0])).get()) {
-                    if (document.exists()) {
-                        result.put(document.getId(), fromDocument(document));
+                    if (resolved.isEmpty()) {
+                        return Optional.<ActivityLog>empty();
                     }
-                }
-            }
 
-            return result;
+                    toStore = resolved.get();
+                }
+
+                tx.set(ref, toMap(toStore));
+
+                return Optional.of(toStore);
+            }).get();
 
         } catch (Exception e) {
-            throw new RuntimeException("Error retrieving activity logs", e);
+            throw new RuntimeException("Error saving log", e);
         }
     }
 
     @Override
-    public void save(String uid, ActivityLog log) {
+    public List<String> upsertAll(
+            String uid, List<ActivityLog> incoming,
+            BiFunction<ActivityLog, ActivityLog, Optional<ActivityLog>> resolver) {
         try {
-            collection(uid).document(log.id()).set(toMap(log)).get();
+            List<String> skipped = new ArrayList<>();
 
-        } catch (Exception e) {
-            throw new RuntimeException("Error saving activity log", e);
-        }
-    }
+            for (int i = 0; i < incoming.size(); i += BATCH_SIZE) {
+                List<ActivityLog> chunk = incoming.subList(
+                        i, Math.min(i + BATCH_SIZE, incoming.size()));
 
-    @Override
-    public void saveAll(String uid, List<ActivityLog> logs) {
-        try {
-            for (int i = 0; i < logs.size(); i += BATCH_SIZE) {
-                WriteBatch batch = firestore.batch();
+                skipped.addAll(firestore.runTransaction(tx -> {
+                    DocumentReference[] refs = chunk.stream()
+                            .map(ActivityLog::id)
+                            .distinct()
+                            .map(collection(uid)::document)
+                            .toArray(DocumentReference[]::new);
 
-                for (var log : logs.subList(
-                        i, Math.min(i + BATCH_SIZE, logs.size()))) {
-                    batch.set(collection(uid).document(log.id()), toMap(log));
-                }
+                    Map<String, ActivityLog> stored = new HashMap<>();
 
-                batch.commit().get();
+                    for (DocumentSnapshot snapshot : tx.getAll(refs).get()) {
+                        if (snapshot.exists()) {
+                            stored.put(snapshot.getId(), fromDocument(snapshot));
+                        }
+                    }
+
+                    UpsertPlanner.Plan<ActivityLog> plan = UpsertPlanner.plan(
+                            stored, chunk, ActivityLog::id, resolver);
+
+                    for (ActivityLog item : plan.toWrite()) {
+                        tx.set(collection(uid).document(item.id()), toMap(item));
+                    }
+
+                    return plan.skipped();
+                }).get());
             }
 
+            return skipped;
+
         } catch (Exception e) {
-            throw new RuntimeException("Error saving activity logs", e);
+            throw new RuntimeException("Error saving logs", e);
         }
     }
 

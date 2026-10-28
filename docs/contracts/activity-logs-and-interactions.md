@@ -5,6 +5,7 @@ For the Kotlin and Flutter apps. Collections and fields are also read directly b
 ## General rules
 
 - **Units:** every `*At` field is epoch **milliseconds**. `availableMin` and `durationMin` are **minutes**.
+- **Concurrency:** upserts are atomic (Firestore transaction), so two simultaneous retries of the same id are safe: the outcome is the same as if they ran one after the other.
 - **Idempotent writes:** the client generates a UUID and uses it as the document id. Repeating the same request never creates duplicates. The id in the URL wins over the `id` in the body.
 - **Auth (user endpoints):** `Authorization: Bearer <Firebase ID token>`. `401` missing/invalid token, `403` token uid ≠ `{uid}` in the path. Catalog endpoints are open.
 - **Coordinates:** the server always rounds `latitude`/`longitude` to 2 decimals (~1 km), whatever the app sends. Send `null` if there is no location.
@@ -39,7 +40,8 @@ For the Kotlin and Flutter apps. Collections and fields are also read directly b
 }
 ```
 
-(Legacy fields `description`, `durationMinutes`, `difficulty` may also appear.)
+**Official fields:** `durationMin` (minutes) and `prompt`. Use only these in the apps.
+`durationMinutes` and `description` still appear in responses as compatibility mirrors of `durationMin` and `prompt` (the server fills them; if both are sent, the official one wins). They exist only for older readers and may be removed later. `difficulty` is legacy and not used by the catalog.
 
 `GET /api/offline-activities/version` → `{ "version": "9f2c4a1b7d3e8a60", "updatedAt": 1760000000000 }`.
 Download the catalog only when `version` differs from the one you stored.

@@ -9,12 +9,17 @@ import com.dreamteam.breakloop.util.Coordinates;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiFunction;
 
 @Service
 public class ActivityLogService {
+
+    private static final BiFunction<ActivityLog, ActivityLog,
+            Optional<ActivityLog>> KEEP_COMPLETION =
+            (existing, incoming) -> Optional.of(
+                    keepCompletion(existing, incoming));
 
     private final ActivityLogRepository repository;
     private final RequestValidator validator;
@@ -38,16 +43,15 @@ public class ActivityLogService {
                         "Activity log not found"));
     }
 
-    /** Idempotent: the same body twice leaves one identical document. */
+    /**
+     * Idempotent: the same body twice leaves one identical document. The
+     * merge with the stored log runs inside the repository's transaction.
+     */
     public ActivityLog upsert(String uid, String id, ActivityLog body) {
 
-        ActivityLog log = keepCompletion(
-                repository.findById(uid, id).orElse(null),
-                normalize(id, body));
-
-        repository.save(uid, log);
-
-        return log;
+        return repository
+                .upsert(uid, normalize(id, body), KEEP_COMPLETION)
+                .orElseThrow();
     }
 
     public BatchResult upsertAll(String uid, List<ActivityLog> body) {
@@ -66,26 +70,9 @@ public class ActivityLogService {
             normalized.add(normalize(item.id(), item));
         }
 
-        Map<String, ActivityLog> current = new HashMap<>(
-                repository.findByIds(
-                        uid,
-                        normalized.stream()
-                                .map(ActivityLog::id)
-                                .distinct()
-                                .toList()));
+        repository.upsertAll(uid, normalized, KEEP_COMPLETION);
 
-        List<ActivityLog> toWrite = new ArrayList<>();
-
-        for (ActivityLog item : normalized) {
-            ActivityLog log = keepCompletion(current.get(item.id()), item);
-
-            current.put(log.id(), log);
-            toWrite.add(log);
-        }
-
-        repository.saveAll(uid, toWrite);
-
-        return new BatchResult(toWrite.size(), List.of());
+        return new BatchResult(normalized.size(), List.of());
     }
 
     /** Applies the route id and coordinate rounding; input is untouched. */
@@ -122,7 +109,7 @@ public class ActivityLogService {
      */
     static ActivityLog keepCompletion(ActivityLog existing, ActivityLog in) {
 
-        if (existing == null || existing.completedAt() == null ||
+        if (existing.completedAt() == null ||
                 in.completedAt() != null) {
             return in;
         }

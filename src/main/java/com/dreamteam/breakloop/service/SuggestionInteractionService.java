@@ -13,12 +13,20 @@ import com.dreamteam.breakloop.util.Coordinates;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiFunction;
 
 @Service
 public class SuggestionInteractionService {
+
+    /** Rejects (empty) a write that would reopen a closed interaction. */
+    private static final BiFunction<SuggestionInteraction,
+            SuggestionInteraction, Optional<SuggestionInteraction>>
+            KEEP_CLOSED = (existing, incoming) ->
+                    reopens(existing, incoming)
+                            ? Optional.empty()
+                            : Optional.of(incoming);
 
     private final SuggestionInteractionRepository repository;
     private final RequestValidator validator;
@@ -43,18 +51,18 @@ public class SuggestionInteractionService {
                         "Suggestion interaction not found"));
     }
 
-    /** Idempotent: the same body twice leaves one identical document. */
+    /**
+     * Idempotent: the same body twice leaves one identical document. The
+     * "closed never goes back to PENDING" check runs inside the repository's
+     * transaction, so two concurrent retries cannot slip past it.
+     */
     public SuggestionInteraction upsert(
             String uid, String id, SuggestionInteraction body) {
 
-        SuggestionInteraction interaction = normalize(id, body);
-
-        repository.findById(uid, id).ifPresent(
-                existing -> assertNotReopened(existing, interaction));
-
-        repository.save(uid, interaction);
-
-        return interaction;
+        return repository
+                .upsert(uid, normalize(id, body), KEEP_CLOSED)
+                .orElseThrow(() -> new ConflictException(
+                        "Interaction is already closed and cannot go back to PENDING"));
     }
 
     /**
@@ -79,32 +87,10 @@ public class SuggestionInteractionService {
             normalized.add(normalize(item.id(), item));
         }
 
-        Map<String, SuggestionInteraction> current = new HashMap<>(
-                repository.findByIds(
-                        uid,
-                        normalized.stream()
-                                .map(SuggestionInteraction::id)
-                                .distinct()
-                                .toList()));
+        List<String> skipped =
+                repository.upsertAll(uid, normalized, KEEP_CLOSED);
 
-        List<SuggestionInteraction> toWrite = new ArrayList<>();
-        List<String> skipped = new ArrayList<>();
-
-        for (SuggestionInteraction item : normalized) {
-            SuggestionInteraction existing = current.get(item.id());
-
-            if (existing != null && reopens(existing, item)) {
-                skipped.add(item.id());
-                continue;
-            }
-
-            current.put(item.id(), item);
-            toWrite.add(item);
-        }
-
-        repository.saveAll(uid, toWrite);
-
-        return new BatchResult(toWrite.size(), skipped);
+        return new BatchResult(normalized.size() - skipped.size(), skipped);
     }
 
     /**
@@ -193,14 +179,5 @@ public class SuggestionInteractionService {
 
         return existing.outcome() != InteractionOutcome.PENDING &&
                 incoming.outcome() == InteractionOutcome.PENDING;
-    }
-
-    static void assertNotReopened(
-            SuggestionInteraction existing, SuggestionInteraction incoming) {
-
-        if (reopens(existing, incoming)) {
-            throw new ConflictException(
-                    "Interaction is already closed and cannot go back to PENDING");
-        }
     }
 }

@@ -14,16 +14,15 @@ import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
-import com.google.cloud.firestore.WriteBatch;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 
 import static com.dreamteam.breakloop.repository.FirestoreFields.BATCH_SIZE;
 import static com.dreamteam.breakloop.repository.FirestoreFields.getEnum;
@@ -85,68 +84,79 @@ public class FirebaseSuggestionInteractionRepository
     }
 
     @Override
-    public Map<String, SuggestionInteraction> findByIds(
-            String uid, Collection<String> ids) {
+    public Optional<SuggestionInteraction> upsert(
+            String uid, SuggestionInteraction incoming,
+            BiFunction<SuggestionInteraction, SuggestionInteraction, Optional<SuggestionInteraction>> resolver) {
         try {
-            List<DocumentReference> refs = ids.stream()
-                    .map(collection(uid)::document)
-                    .toList();
+            return firestore.runTransaction(tx -> {
+                DocumentReference ref =
+                        collection(uid).document(incoming.id());
+                DocumentSnapshot snapshot = tx.get(ref).get();
 
-            Map<String, SuggestionInteraction> result = new HashMap<>();
+                SuggestionInteraction toStore = incoming;
 
-            for (int i = 0; i < refs.size(); i += BATCH_SIZE) {
-                var chunk = refs.subList(
-                        i, Math.min(i + BATCH_SIZE, refs.size()));
+                if (snapshot.exists()) {
+                    Optional<SuggestionInteraction> resolved =
+                            resolver.apply(fromDocument(snapshot), incoming);
 
-                for (var document : firestore.getAll(
-                        chunk.toArray(new DocumentReference[0])).get()) {
-                    if (document.exists()) {
-                        result.put(document.getId(), fromDocument(document));
+                    if (resolved.isEmpty()) {
+                        return Optional.<SuggestionInteraction>empty();
                     }
-                }
-            }
 
-            return result;
+                    toStore = resolved.get();
+                }
+
+                tx.set(ref, toMap(toStore));
+
+                return Optional.of(toStore);
+            }).get();
 
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Error retrieving suggestion interactions", e);
+            throw new RuntimeException("Error saving interaction", e);
         }
     }
 
     @Override
-    public void save(String uid, SuggestionInteraction interaction) {
+    public List<String> upsertAll(
+            String uid, List<SuggestionInteraction> incoming,
+            BiFunction<SuggestionInteraction, SuggestionInteraction, Optional<SuggestionInteraction>> resolver) {
         try {
-            collection(uid)
-                    .document(interaction.id())
-                    .set(toMap(interaction))
-                    .get();
+            List<String> skipped = new ArrayList<>();
 
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Error saving suggestion interaction", e);
-        }
-    }
+            for (int i = 0; i < incoming.size(); i += BATCH_SIZE) {
+                List<SuggestionInteraction> chunk = incoming.subList(
+                        i, Math.min(i + BATCH_SIZE, incoming.size()));
 
-    @Override
-    public void saveAll(String uid, List<SuggestionInteraction> interactions) {
-        try {
-            for (int i = 0; i < interactions.size(); i += BATCH_SIZE) {
-                WriteBatch batch = firestore.batch();
+                skipped.addAll(firestore.runTransaction(tx -> {
+                    DocumentReference[] refs = chunk.stream()
+                            .map(SuggestionInteraction::id)
+                            .distinct()
+                            .map(collection(uid)::document)
+                            .toArray(DocumentReference[]::new);
 
-                for (var interaction : interactions.subList(
-                        i, Math.min(i + BATCH_SIZE, interactions.size()))) {
-                    batch.set(
-                            collection(uid).document(interaction.id()),
-                            toMap(interaction));
-                }
+                    Map<String, SuggestionInteraction> stored = new HashMap<>();
 
-                batch.commit().get();
+                    for (DocumentSnapshot snapshot : tx.getAll(refs).get()) {
+                        if (snapshot.exists()) {
+                            stored.put(snapshot.getId(), fromDocument(snapshot));
+                        }
+                    }
+
+                    UpsertPlanner.Plan<SuggestionInteraction> plan = UpsertPlanner.plan(
+                            stored, chunk, SuggestionInteraction::id, resolver);
+
+                    for (SuggestionInteraction item : plan.toWrite()) {
+                        tx.set(collection(uid).document(item.id()), toMap(item));
+                    }
+
+                    return plan.skipped();
+                }).get());
             }
 
+            return skipped;
+
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Error saving suggestion interactions", e);
+            throw new RuntimeException("Error saving interactions", e);
         }
     }
 

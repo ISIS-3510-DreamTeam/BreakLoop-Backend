@@ -1,27 +1,20 @@
 package com.dreamteam.breakloop.controller;
 
 import com.dreamteam.breakloop.config.WebConfig;
-import com.dreamteam.breakloop.model.ActivityLog;
-import com.dreamteam.breakloop.repository.ActivityLogRepository;
+import com.dreamteam.breakloop.repository.InMemoryActivityLogRepository;
 import com.dreamteam.breakloop.service.ActivityLogService;
 import com.dreamteam.breakloop.service.RequestValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Map;
-import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -29,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ActivityLogController.class)
-@Import({ActivityLogService.class, RequestValidator.class,
+@Import({InMemoryActivityLogRepository.class, ActivityLogService.class, RequestValidator.class,
         NewApiExceptionHandler.class, WebConfig.class})
 @TestPropertySource(properties = "breakloop.auth.enabled=false")
 class ActivityLogControllerTest {
@@ -43,8 +36,13 @@ class ActivityLogControllerTest {
     @Autowired
     private MockMvc mvc;
 
-    @MockitoBean
-    private ActivityLogRepository repository;
+    @Autowired
+    private InMemoryActivityLogRepository repository;
+
+    @BeforeEach
+    void clearStore() {
+        repository.stored.clear();
+    }
 
     @Test
     void putUsesRouteIdAndRoundsCoordinates() throws Exception {
@@ -56,7 +54,7 @@ class ActivityLogControllerTest {
                 .andExpect(jsonPath("$.latitude").value(4.71))
                 .andExpect(jsonPath("$.completedAt").isEmpty());
 
-        verify(repository).save(eq("u1"), any(ActivityLog.class));
+        assertEquals("l1", repository.stored.get("l1").id());
     }
 
     @Test
@@ -69,21 +67,17 @@ class ActivityLogControllerTest {
 
     @Test
     void getUnknownIs404() throws Exception {
-        when(repository.findById("u1", "nope")).thenReturn(Optional.empty());
-
         mvc.perform(get("/api/users/u1/activity-logs/nope"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void batchWritesAll() throws Exception {
-        when(repository.findByIds(eq("u1"), anyCollection()))
-                .thenReturn(Map.of());
-
         mvc.perform(post("/api/users/u1/activity-logs/batch")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("[" + LOG.replace("ignored", "l1") + "]"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.written").value(1));
+        assertEquals(1, repository.stored.size());
     }
 }

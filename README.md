@@ -112,7 +112,9 @@ curl -X PUT http://localhost:8080/api/users/$UID/activity-logs/$(uuidgen) \
 
 ### Idempotency
 
-Every write is an upsert keyed by a client-generated UUID, which is the document id. Sending the same request again never creates a duplicate, so clients can retry freely from their local queue. The id in the path wins over the `id` in the body.
+Every write is an upsert keyed by a client-generated UUID, which is the document id. Sending the same request again never creates a duplicate, so clients can retry freely from their local queue. The id in the path wins over the `id` in the body. Interaction and log upserts run in a Firestore transaction (read, apply rule, write), so concurrent retries of the same id cannot interleave; a closed interaction never goes back to `PENDING`, even under a race.
+
+Catalog fields: `durationMin` and `prompt` are official; `durationMinutes` and `description` are compatibility mirrors filled by the server.
 
 ### Examples
 
@@ -142,5 +144,5 @@ curl http://localhost:8080/api/offline-activities/version
 To run only the new tests (no Firebase credentials needed):
 
 ```powershell
-mvn "-Dtest=CoordinatesTest,SuggestionInteractionServiceTest,ActivityLogServiceTest,OfflineActivityServiceTest,SuggestionInteractionControllerTest,ActivityLogControllerTest,OfflineActivityController*Test,FirebaseAuthInterceptorTest,NewEndpointsAuthWiringTest" test
+mvn "-Dtest=CoordinatesTest,SuggestionInteractionServiceTest,ActivityLogServiceTest,OfflineActivityServiceTest,BundledCatalogTest,UpsertPlannerTest,SuggestionInteractionControllerTest,ActivityLogControllerTest,OfflineActivityController*Test,FirebaseAuthInterceptorTest,NewEndpointsAuthWiringTest" test
 ```

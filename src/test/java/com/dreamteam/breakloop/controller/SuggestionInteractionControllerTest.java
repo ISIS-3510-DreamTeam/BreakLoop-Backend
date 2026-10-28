@@ -1,29 +1,20 @@
 package com.dreamteam.breakloop.controller;
 
 import com.dreamteam.breakloop.config.WebConfig;
-import com.dreamteam.breakloop.model.SuggestionInteraction;
-import com.dreamteam.breakloop.repository.SuggestionInteractionRepository;
+import com.dreamteam.breakloop.repository.InMemorySuggestionInteractionRepository;
 import com.dreamteam.breakloop.service.RequestValidator;
 import com.dreamteam.breakloop.service.SuggestionInteractionService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -31,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SuggestionInteractionController.class)
-@Import({SuggestionInteractionService.class, RequestValidator.class,
+@Import({InMemorySuggestionInteractionRepository.class, SuggestionInteractionService.class, RequestValidator.class,
         NewApiExceptionHandler.class, WebConfig.class})
 @TestPropertySource(properties = "breakloop.auth.enabled=false")
 class SuggestionInteractionControllerTest {
@@ -47,8 +38,13 @@ class SuggestionInteractionControllerTest {
     @Autowired
     private MockMvc mvc;
 
-    @MockitoBean
-    private SuggestionInteractionRepository repository;
+    @Autowired
+    private InMemorySuggestionInteractionRepository repository;
+
+    @BeforeEach
+    void clearStore() {
+        repository.stored.clear();
+    }
 
     @Test
     void putStoresRoundedDocumentWithRouteId() throws Exception {
@@ -62,7 +58,7 @@ class SuggestionInteractionControllerTest {
                 .andExpect(jsonPath("$.isWeekend").value(true))
                 .andExpect(jsonPath("$.weekend").doesNotExist());
 
-        verify(repository).save(eq("u1"), any(SuggestionInteraction.class));
+        assertEquals(4.71, repository.stored.get("i1").latitude());
     }
 
     @Test
@@ -73,7 +69,7 @@ class SuggestionInteractionControllerTest {
                                 .replace("\"outcome\"", "\"closedAt\": 2000, \"outcome\"")))
                 .andExpect(status().isBadRequest());
 
-        verify(repository, never()).save(any(), any());
+        assertEquals(0, repository.stored.size());
     }
 
     @Test
@@ -89,13 +85,9 @@ class SuggestionInteractionControllerTest {
         String closed = PENDING.replace("\"PENDING\"", "\"NO_ACTIVITY\"")
                 .replace("\"outcome\"", "\"closedAt\": 2000, \"outcome\"");
         mvc.perform(put("/api/users/u1/suggestion-interactions/i1")
-                .contentType(MediaType.APPLICATION_JSON).content(closed));
-
-        // Second request sees the closed document stored by the first
-        when(repository.findById("u1", "i1")).thenReturn(Optional.of(
-                new com.fasterxml.jackson.databind.ObjectMapper()
-                        .readValue(closed.replace("\"openedAt\"", "\"id\": \"i1\", \"openedAt\""),
-                                SuggestionInteraction.class)));
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(closed))
+                .andExpect(status().isOk());
 
         mvc.perform(put("/api/users/u1/suggestion-interactions/i1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,16 +97,12 @@ class SuggestionInteractionControllerTest {
 
     @Test
     void getUnknownIs404() throws Exception {
-        when(repository.findById("u1", "nope")).thenReturn(Optional.empty());
-
         mvc.perform(get("/api/users/u1/suggestion-interactions/nope"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void listReturnsInteractions() throws Exception {
-        when(repository.findAll("u1", null, null)).thenReturn(List.of());
-
         mvc.perform(get("/api/users/u1/suggestion-interactions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
@@ -122,9 +110,6 @@ class SuggestionInteractionControllerTest {
 
     @Test
     void batchReportsWrittenCount() throws Exception {
-        when(repository.findByIds(eq("u1"), anyCollection()))
-                .thenReturn(Map.of());
-
         mvc.perform(post("/api/users/u1/suggestion-interactions/batch")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("[" + PENDING.replace("{\"openedAt\"",

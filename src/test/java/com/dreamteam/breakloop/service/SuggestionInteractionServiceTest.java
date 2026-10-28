@@ -9,31 +9,20 @@ import com.dreamteam.breakloop.model.InteractionOutcome;
 import com.dreamteam.breakloop.model.ShownSuggestion;
 import com.dreamteam.breakloop.model.SuggestionInteraction;
 import com.dreamteam.breakloop.model.TimeOfDay;
-import com.dreamteam.breakloop.repository.SuggestionInteractionRepository;
+import com.dreamteam.breakloop.repository.InMemorySuggestionInteractionRepository;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class SuggestionInteractionServiceTest {
 
-    private final SuggestionInteractionRepository repository =
-            mock(SuggestionInteractionRepository.class);
+    private final InMemorySuggestionInteractionRepository repository =
+            new InMemorySuggestionInteractionRepository();
 
     private final SuggestionInteractionService service =
             new SuggestionInteractionService(
@@ -162,43 +151,79 @@ class SuggestionInteractionServiceTest {
 
     @Test
     void closedInteractionCannotGoBackToPending() {
-        SuggestionInteraction closed = service.normalize("x", interaction(
+        service.upsert("u", "x", interaction(
                 InteractionOutcome.NO_ACTIVITY, 2_000L, null, null, null));
-        when(repository.findById("u", "x")).thenReturn(Optional.of(closed));
 
         assertThrows(ConflictException.class,
                 () -> service.upsert("u", "x", pending()));
-        verify(repository, never()).save(any(), any());
+        assertEquals(InteractionOutcome.NO_ACTIVITY,
+                repository.stored.get("x").outcome());
     }
 
     @Test
     void pendingCanBeClosedAndClosedCanBeRewritten() {
-        SuggestionInteraction open = service.normalize("x", pending());
-        when(repository.findById("u", "x")).thenReturn(Optional.of(open));
-
+        service.upsert("u", "x", pending());
         service.upsert("u", "x", interaction(
                 InteractionOutcome.ACCEPTED, 2_000L, "a1", null, null));
-        verify(repository).save(eq("u"), any());
+        service.upsert("u", "x", interaction(
+                InteractionOutcome.NO_ACTIVITY, 3_000L, null, null, null));
+
+        assertEquals(InteractionOutcome.NO_ACTIVITY,
+                repository.stored.get("x").outcome());
+    }
+
+    @Test
+    void sameRequestTwiceLeavesOneIdenticalDocument() {
+        SuggestionInteraction first = service.upsert("u", "x", pending());
+        SuggestionInteraction second = service.upsert("u", "x", pending());
+
+        assertEquals(first, second);
+        assertEquals(1, repository.stored.size());
+    }
+
+    @Test
+    void concurrentPendingRetryNeverOverwritesTheClose() throws Exception {
+        // Many stale PENDING retries race with the close of the same visit
+        service.upsert("u", "x", pending());
+
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            final boolean close = i == 100;
+            futures.add(pool.submit(() -> {
+                try {
+                    service.upsert("u", "x", close
+                            ? interaction(InteractionOutcome.NO_ACTIVITY,
+                                    2_000L, null, null, null)
+                            : pending());
+                } catch (ConflictException expected) {
+                    // retry arrived after the close
+                }
+            }));
+        }
+        for (var f : futures) {
+            f.get();
+        }
+        pool.shutdown();
+
+        assertEquals(InteractionOutcome.NO_ACTIVITY,
+                repository.stored.get("x").outcome());
     }
 
     @Test
     void batchSkipsReopeningItemsAndWritesTheRest() {
-        SuggestionInteraction closed = service.normalize("old", interaction(
+        service.upsert("u", "old", interaction(
                 InteractionOutcome.NO_ACTIVITY, 2_000L, null, null, null));
-        when(repository.findByIds(eq("u"), anyCollection()))
-                .thenReturn(Map.of("old", closed));
 
         BatchResult result = service.upsertAll("u", List.of(
                 withId("old", pending()), withId("new", pending())));
 
         assertEquals(1, result.written());
         assertEquals(List.of("old"), result.skipped());
-
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<SuggestionInteraction>> saved =
-                ArgumentCaptor.forClass(List.class);
-        verify(repository).saveAll(eq("u"), saved.capture());
-        assertEquals("new", saved.getValue().get(0).id());
+        assertEquals(InteractionOutcome.PENDING,
+                repository.stored.get("new").outcome());
+        assertEquals(InteractionOutcome.NO_ACTIVITY,
+                repository.stored.get("old").outcome());
     }
 
     @Test
@@ -208,20 +233,18 @@ class SuggestionInteractionServiceTest {
 
         assertThrows(RequestValidationException.class, () ->
                 service.upsertAll("u", List.of(withId("a", pending()), bad)));
-        verify(repository, never()).saveAll(any(), anyList());
+        assertEquals(0, repository.stored.size());
     }
 
     @Test
     void batchDetectsReopeningWithinTheSameBatch() {
-        when(repository.findByIds(eq("u"), anyCollection()))
-                .thenReturn(Map.of());
-
         BatchResult result = service.upsertAll("u", List.of(
                 withId("a", interaction(InteractionOutcome.NO_ACTIVITY, 2_000L,
                         null, null, null)),
                 withId("a", pending())));
 
         assertEquals(List.of("a"), result.skipped());
+        assertEquals(1, result.written());
     }
 
     @Test
