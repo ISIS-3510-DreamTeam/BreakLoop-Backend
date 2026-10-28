@@ -12,8 +12,9 @@ public class OfflineActivity {
     private String difficulty;
     private boolean active;
 
-    // Catalog fields (BQ12). durationMinutes/description/difficulty are legacy
-    // and kept so existing clients keep working.
+    // Official catalog fields: durationMin and prompt (plus the ones below).
+    // durationMinutes and description are compatibility mirrors filled by the
+    // service; difficulty is legacy and unused by the catalog.
     private int durationMin;
     private int xp;
     private String prompt;

@@ -44,6 +44,48 @@ class OfflineActivityServiceTest {
     }
 
     @Test
+    void seedFillsLegacyMirrorsFromOfficialFields() {
+        service.seedCatalog();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<OfflineActivity>> saved =
+                ArgumentCaptor.forClass(List.class);
+        verify(repository).upsertAll(saved.capture());
+
+        OfflineActivity walk = saved.getValue().get(0);
+        assertEquals(15, walk.getDurationMinutes());
+        assertEquals("Take a short walk.", walk.getDescription());
+    }
+
+    @Test
+    void legacyOnlyActivityGetsOfficialFields() {
+        OfflineActivity legacy = new OfflineActivity();
+        legacy.setTitle("Old");
+        legacy.setDescription("Do the old thing");
+        legacy.setDurationMinutes(10);
+
+        service.createActivity(legacy);
+
+        assertEquals(10, legacy.getDurationMin());
+        assertEquals("Do the old thing", legacy.getPrompt());
+    }
+
+    @Test
+    void officialFieldsWinOverLegacyOnes() {
+        OfflineActivity both = new OfflineActivity();
+        both.setTitle("Both");
+        both.setPrompt("New text");
+        both.setDescription("Old text");
+        both.setDurationMin(5);
+        both.setDurationMinutes(99);
+
+        service.createActivity(both);
+
+        assertEquals(5, both.getDurationMinutes());
+        assertEquals("New text", both.getDescription());
+    }
+
+    @Test
     void categoryFilterIsCaseInsensitive() {
         service.getActivities("move");
 

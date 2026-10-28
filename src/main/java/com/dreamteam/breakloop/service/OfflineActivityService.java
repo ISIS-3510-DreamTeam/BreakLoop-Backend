@@ -119,8 +119,6 @@ public class OfflineActivityService {
             );
         }
 
-        long now = System.currentTimeMillis();
-
         for (OfflineActivity activity : activities) {
 
             if (activity.getId() == null || activity.getId().isBlank()) {
@@ -135,8 +133,8 @@ public class OfflineActivityService {
                 );
             }
 
+            normalize(activity);
             activity.setActive(true);
-            activity.setUpdatedAt(now);
         }
 
         repository.upsertAll(activities);
@@ -180,17 +178,22 @@ public class OfflineActivityService {
         repository.delete(id);
     }
 
-    // Legacy clients send durationMinutes, catalog clients durationMin;
-    // keep both populated so either kind of reader sees the value.
+    // durationMin and prompt are the official fields. durationMinutes and
+    // description are only kept filled as mirrors for older readers; when
+    // both are sent, the official one wins.
     private void normalize(OfflineActivity activity) {
 
         if (activity.getDurationMin() <= 0) {
             activity.setDurationMin(activity.getDurationMinutes());
         }
 
-        if (activity.getDurationMinutes() <= 0) {
-            activity.setDurationMinutes(activity.getDurationMin());
+        activity.setDurationMinutes(activity.getDurationMin());
+
+        if (activity.getPrompt() == null || activity.getPrompt().isBlank()) {
+            activity.setPrompt(activity.getDescription());
         }
+
+        activity.setDescription(activity.getPrompt());
 
         activity.setUpdatedAt(System.currentTimeMillis());
     }
