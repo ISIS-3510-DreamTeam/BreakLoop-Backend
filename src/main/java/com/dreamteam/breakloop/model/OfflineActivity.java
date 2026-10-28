@@ -1,5 +1,7 @@
 package com.dreamteam.breakloop.model;
 
+import java.util.List;
+
 public class OfflineActivity {
 
     private String id;
@@ -9,6 +11,16 @@ public class OfflineActivity {
     private int durationMinutes;
     private String difficulty;
     private boolean active;
+
+    // Catalog fields (BQ12). durationMinutes/description/difficulty are legacy
+    // and kept so existing clients keep working.
+    private int durationMin;
+    private int xp;
+    private String prompt;
+    private boolean outdoor;
+    private List<String> weather;
+    private List<String> timeOfDay;
+    private long updatedAt;
 
     public OfflineActivity() {
     }
@@ -84,5 +96,61 @@ public class OfflineActivity {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public int getDurationMin() {
+        return durationMin;
+    }
+
+    public void setDurationMin(int durationMin) {
+        this.durationMin = durationMin;
+    }
+
+    public int getXp() {
+        return xp;
+    }
+
+    public void setXp(int xp) {
+        this.xp = xp;
+    }
+
+    public String getPrompt() {
+        return prompt;
+    }
+
+    public void setPrompt(String prompt) {
+        this.prompt = prompt;
+    }
+
+    public boolean isOutdoor() {
+        return outdoor;
+    }
+
+    public void setOutdoor(boolean outdoor) {
+        this.outdoor = outdoor;
+    }
+
+    public List<String> getWeather() {
+        return weather;
+    }
+
+    public void setWeather(List<String> weather) {
+        this.weather = weather;
+    }
+
+    public List<String> getTimeOfDay() {
+        return timeOfDay;
+    }
+
+    public void setTimeOfDay(List<String> timeOfDay) {
+        this.timeOfDay = timeOfDay;
+    }
+
+    public long getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(long updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }
