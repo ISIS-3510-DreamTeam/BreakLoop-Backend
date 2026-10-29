@@ -1,8 +1,7 @@
 package com.dreamteam.breakloop.controller;
 
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,47 +9,35 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.IOException;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/soundscapes")
 public class SoundscapeController {
 
-    private static final Path AUDIO_DIRECTORY =
-            Paths.get("audio").toAbsolutePath().normalize();
-
     private static final Map<String, String> FILES = Map.of(
-            "hearth", "hearth.mp3",
-            "rain", "rain.mp3"
-    );
+            "hearth", "audio/hearth.mp3",
+            "rain", "audio/rain.mp3");
 
     @GetMapping("/{name}")
     public ResponseEntity<Resource> getSoundscape(
-            @PathVariable String name
-    ) {
-        String filename = FILES.get(name.toLowerCase());
+            @PathVariable String name) throws IOException {
 
-        if (filename == null) {
+        String path = FILES.get(name.toLowerCase());
+
+        if (path == null) {
             return ResponseEntity.notFound().build();
         }
 
-        Path file = AUDIO_DIRECTORY.resolve(filename).normalize();
+        Resource resource = new ClassPathResource(path);
 
-        if (!file.startsWith(AUDIO_DIRECTORY)
-                || !file.toFile().isFile()) {
+        if (!resource.exists()) {
             return ResponseEntity.notFound().build();
         }
-
-        Resource resource = new FileSystemResource(file);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("audio/mpeg"))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"" + filename + "\""
-                )
                 .body(resource);
     }
 }
