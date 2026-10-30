@@ -23,6 +23,10 @@ public class FirebaseAuthInterceptor implements HandlerInterceptor {
 
     private static final String BEARER = "Bearer ";
 
+    /** Request attribute with the token's email (may be null). */
+    public static final String TOKEN_EMAIL_ATTRIBUTE =
+            FirebaseAuthInterceptor.class.getName() + ".email";
+
     // Resolved per request so a context without Firebase (such as a
     // @WebMvcTest) still starts.
     private final Supplier<FirebaseAuth> firebaseAuth;
@@ -66,6 +70,8 @@ public class FirebaseAuthInterceptor implements HandlerInterceptor {
         if (uid == null || !uid.equals(token.getUid())) {
             return reject(response, 403, "Token does not belong to this user");
         }
+
+        request.setAttribute(TOKEN_EMAIL_ATTRIBUTE, token.getEmail());
 
         return true;
     }

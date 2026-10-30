@@ -34,6 +34,8 @@ public class WebConfig implements WebMvcConfigurer {
                         new FirebaseAuthInterceptor(firebaseAuth::getObject))
                 .addPathPatterns(
                         "/api/users/{uid}/activity-logs/**",
-                        "/api/users/{uid}/suggestion-interactions/**");
+                        "/api/users/{uid}/suggestion-interactions/**",
+                        "/api/users/{uid}/friend-profile",
+                        "/api/users/{uid}/friends/**");
     }
 }

@@ -75,6 +75,31 @@ Example:
 GET http://localhost:8080/api/offline-activities
 ```
 
+## Friends
+
+Contract and Firestore schema (shared with the Flutter app, same paths and fields): [`docs/contracts/friends.md`](docs/contracts/friends.md).
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/users/{uid}/friend-profile` | Bearer | Get the profile, or create it with a new friend code. Body `{"email"}` (optional) |
+| POST | `/api/users/{uid}/friends` | Bearer | Add a friend by code. Body `{"code"}`. Returns `{"result": "ADDED" \| "NOT_FOUND" \| "OWN_CODE"}`; `400` if the code is empty |
+| GET | `/api/users/{uid}/friends` | Bearer | Friends with `streak` and `petLevel`, ordered by `displayName` |
+
+```bash
+curl -X POST http://localhost:8080/api/users/$UID/friend-profile \
+  -H "Authorization: Bearer $FIREBASE_ID_TOKEN" -H "Content-Type: application/json" \
+  -d '{"email":"ana@mail.com"}'
+
+curl -X POST http://localhost:8080/api/users/$UID/friends \
+  -H "Authorization: Bearer $FIREBASE_ID_TOKEN" -H "Content-Type: application/json" \
+  -d '{"code":"AB3K"}'
+
+curl http://localhost:8080/api/users/$UID/friends \
+  -H "Authorization: Bearer $FIREBASE_ID_TOKEN"
+```
+
+Tests without Firebase credentials: `mvn "-Dtest=FriendCodeGeneratorTest,FriendServiceTest,FriendControllerTest,FriendsAuthWiringTest" test`
+
 ## Catalog, suggestion interactions and activity logs (BQ12)
 
 Contract for the apps: [`docs/contracts/activity-logs-and-interactions.md`](docs/contracts/activity-logs-and-interactions.md).
