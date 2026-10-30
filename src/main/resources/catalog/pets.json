@@ -1,0 +1,18 @@
+[
+  {
+    "id": "sprout",
+    "name": "Sprout",
+    "images": {
+      "HAPPY": "pets/sprout_happy.png",
+      "SAD": "pets/sprout_sad.png"
+    }
+  },
+  {
+    "id": "ember",
+    "name": "Ember",
+    "images": {
+      "HAPPY": "pets/ember_happy.png",
+      "SAD": "pets/ember_sad.png"
+    }
+  }
+]
