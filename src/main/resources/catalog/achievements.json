@@ -1,0 +1,42 @@
+[
+  {
+    "id": "first_day_in_control",
+    "name": "First day in control!",
+    "description": "Finish a day under your daily limit.",
+    "image": "achievements/first_day_in_control.png",
+    "rule": "FIRST_DAY_UNDER_LIMIT",
+    "target": 1
+  },
+  {
+    "id": "streak_7",
+    "name": "7-day streak",
+    "description": "Keep your streak going for 7 days in a row.",
+    "image": "achievements/streak_7.png",
+    "rule": "STREAK_DAYS",
+    "target": 7
+  },
+  {
+    "id": "streak_30",
+    "name": "30-day streak",
+    "description": "Keep your streak going for 30 days in a row.",
+    "image": "achievements/streak_30.png",
+    "rule": "STREAK_DAYS",
+    "target": 30
+  },
+  {
+    "id": "focus_constant",
+    "name": "Steady focus",
+    "description": "Complete 10 focus sessions.",
+    "image": "achievements/focus_constant.png",
+    "rule": "FOCUS_SESSIONS_COMPLETED",
+    "target": 10
+  },
+  {
+    "id": "week_under_80",
+    "name": "Week under 80%",
+    "description": "Spend 7 days in a row without reaching 80% of your limit.",
+    "image": "achievements/week_under_80.png",
+    "rule": "DAYS_UNDER_80_IN_A_ROW",
+    "target": 7
+  }
+]
