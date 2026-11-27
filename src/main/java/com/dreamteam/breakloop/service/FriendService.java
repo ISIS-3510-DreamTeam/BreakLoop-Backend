@@ -94,8 +94,8 @@ public class FriendService {
         return name.thenCombine(progress, (displayName, p) -> new FriendSummary(
                 friendUid,
                 displayName.orElse(""),
-                p.streak() != null ? p.streak() : 0,
-                p.petLevel() != null ? p.petLevel() : 1));
+                p.streakOrDefault(),
+                p.petLevelOrDefault()));
     }
 
     private static String firstNonBlank(String first, String second) {

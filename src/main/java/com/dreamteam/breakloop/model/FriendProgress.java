@@ -4,4 +4,12 @@ package com.dreamteam.breakloop.model;
 public record FriendProgress(Integer streak, Integer petLevel) {
 
     public static final FriendProgress EMPTY = new FriendProgress(null, null);
+
+    public int streakOrDefault() {
+        return streak != null ? streak : 0;
+    }
+
+    public int petLevelOrDefault() {
+        return petLevel != null ? petLevel : 1;
+    }
 }

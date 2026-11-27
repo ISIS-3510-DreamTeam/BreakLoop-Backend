@@ -63,6 +63,11 @@ public class InMemoryFriendRepository implements FriendRepository {
     }
 
     @Override
+    public boolean isFriend(String uid, String friendUid) {
+        return findFriendUids(uid).contains(friendUid);
+    }
+
+    @Override
     public CompletableFuture<Optional<String>> findDisplayName(String uid) {
         FriendProfile profile = profiles.get(uid);
         return CompletableFuture.completedFuture(
