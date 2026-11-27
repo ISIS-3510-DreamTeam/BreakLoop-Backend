@@ -1,50 +1,19 @@
 package com.dreamteam.breakloop.model;
 
+/**
+ * Streak data of a user, stored in users/{uid}/progress/current.
+ * Pet state lives in users/{uid} (see PetState). XP is per activity, not stored here.
+ */
 public class Progress {
 
-    private int xp;
     private int streak;
-    private int petLevel;
-    private int petHealth;
+    private int longestStreak;
 
     public Progress() {}
 
-    public Progress(int xp, int streak, int petLevel, int petHealth) {
-        this.xp = xp;
-        this.streak = streak;
-        this.petLevel = petLevel;
-        this.petHealth = petHealth;
-    }
+    public int getStreak() { return streak; }
+    public void setStreak(int streak) { this.streak = streak; }
 
-    public int getXp() {
-        return xp;
-    }
-
-    public void setXp(int xp) {
-        this.xp = xp;
-    }
-
-    public int getStreak() {
-        return streak;
-    }
-
-    public void setStreak(int streak) {
-        this.streak = streak;
-    }
-
-    public int getPetLevel() {
-        return petLevel;
-    }
-
-    public void setPetLevel(int petLevel) {
-        this.petLevel = petLevel;
-    }
-
-    public int getPetHealth() {
-        return petHealth;
-    }
-
-    public void setPetHealth(int petHealth) {
-        this.petHealth = petHealth;
-    }
+    public int getLongestStreak() { return longestStreak; }
+    public void setLongestStreak(int longestStreak) { this.longestStreak = longestStreak; }
 }
