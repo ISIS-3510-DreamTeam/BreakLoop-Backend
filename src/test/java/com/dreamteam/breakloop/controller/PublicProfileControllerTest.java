@@ -2,10 +2,12 @@ package com.dreamteam.breakloop.controller;
 
 import com.dreamteam.breakloop.config.WebConfig;
 import com.dreamteam.breakloop.model.FriendProgress;
+import com.dreamteam.breakloop.model.UserAchievement;
 import com.dreamteam.breakloop.model.UserProfile;
 import com.dreamteam.breakloop.repository.InMemoryFriendRepository;
 import com.dreamteam.breakloop.repository.UserProfileRepository;
 import com.dreamteam.breakloop.service.PublicProfileService;
+import com.dreamteam.breakloop.service.UserAchievementService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
@@ -39,6 +42,9 @@ class PublicProfileControllerTest {
 
     @MockitoBean
     private UserProfileRepository profiles;
+
+    @MockitoBean
+    private UserAchievementService achievements;
 
     @MockitoBean
     private FirebaseAuth firebaseAuth;
@@ -78,6 +84,23 @@ class PublicProfileControllerTest {
         getAs("u1", "/api/users/ghost/public-profile")
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/users/u1/public-profile"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void badgesAreTheUnlockedAchievementIds() throws Exception {
+        when(achievements.getUnlocked("u1"))
+                .thenReturn(List.of(new UserAchievement("streak_7", 1L)));
+
+        getAs("u2", "/api/users/u1/badges")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0]").value("streak_7"));
+        getAs("u3", "/api/users/u1/badges")
+                .andExpect(status().isForbidden());
+        getAs("u1", "/api/users/ghost/badges")
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/users/u1/badges"))
                 .andExpect(status().isUnauthorized());
     }
 

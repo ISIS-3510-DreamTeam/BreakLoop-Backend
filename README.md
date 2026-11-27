@@ -107,6 +107,7 @@ All routes require `Authorization: Bearer <Firebase ID token>` (always, even wit
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/users/{uid}/public-profile` | `{ uid, displayName, photoUrl, streak, petLevel }`. `streak` and `petLevel` come from `users/{uid}/progress/current`, as in the friends list |
+| GET | `/api/users/{uid}/badges` | Ids of the unlocked achievements (`users/{uid}/achievements`), `[]` if none |
 
 ## Catalog, suggestion interactions and activity logs (BQ12)
 

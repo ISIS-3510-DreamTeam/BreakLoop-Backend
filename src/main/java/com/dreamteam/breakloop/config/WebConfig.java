@@ -31,7 +31,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addInterceptor(FirebaseAuthInterceptor
                         .authenticationOnly(firebaseAuth::getObject))
                 .addPathPatterns(
-                        "/api/users/{uid}/public-profile");
+                        "/api/users/{uid}/public-profile",
+                        "/api/users/{uid}/badges");
 
         if (!authEnabled) {
             return;
