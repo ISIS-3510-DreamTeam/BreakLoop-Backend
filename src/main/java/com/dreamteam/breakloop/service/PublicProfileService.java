@@ -2,7 +2,9 @@ package com.dreamteam.breakloop.service;
 
 import com.dreamteam.breakloop.exception.ForbiddenException;
 import com.dreamteam.breakloop.exception.NotFoundException;
+import com.dreamteam.breakloop.exception.RequestValidationException;
 import com.dreamteam.breakloop.model.FriendProgress;
+import com.dreamteam.breakloop.model.ProfileUpdate;
 import com.dreamteam.breakloop.model.PublicProfile;
 import com.dreamteam.breakloop.model.UserAchievement;
 import com.dreamteam.breakloop.model.UserProfile;
@@ -47,6 +49,31 @@ public class PublicProfileService {
         return achievements.getUnlocked(uid).stream()
                 .map(UserAchievement::getId)
                 .toList();
+    }
+
+    /** Writes only the fields that were sent; a null field keeps its value. */
+    public void updateProfile(String uid, ProfileUpdate update) {
+        String displayName = trimmed("displayName", update.displayName());
+        String photoUrl = trimmed("photoUrl", update.photoUrl());
+
+        // An empty merge would replace the document, so skip it
+        if (displayName == null && photoUrl == null) {
+            return;
+        }
+
+        profiles.update(uid, displayName, photoUrl);
+    }
+
+    private static String trimmed(String field, String value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value.isBlank()) {
+            throw new RequestValidationException(field + " must not be blank");
+        }
+
+        return value.trim();
     }
 
     /**

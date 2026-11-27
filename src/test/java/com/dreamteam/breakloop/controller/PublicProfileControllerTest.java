@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -22,9 +23,13 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -102,6 +107,32 @@ class PublicProfileControllerTest {
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/users/u1/badges"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void updateWritesOnlySentFieldsOfTheCaller() throws Exception {
+        putProfile("u2", "{\"displayName\":\" Bob \"}")
+                .andExpect(status().isNoContent());
+        verify(profiles).update("u2", "Bob", null);
+
+        putProfile("u3", "{}").andExpect(status().isNoContent());
+        putProfile("u3", "{\"photoUrl\":\" \"}")
+                .andExpect(status().isBadRequest());
+        verify(profiles, never()).update(
+                org.mockito.ArgumentMatchers.eq("u3"), any(), any());
+
+        mvc.perform(put("/api/users/me/profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private ResultActions putProfile(String caller, String body)
+            throws Exception {
+        return mvc.perform(put("/api/users/me/profile")
+                .header("Authorization", "Bearer " + caller)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
     }
 
     private ResultActions getAs(String caller, String url) throws Exception {
