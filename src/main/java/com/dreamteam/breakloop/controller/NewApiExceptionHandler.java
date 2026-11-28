@@ -14,14 +14,15 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.util.Map;
 
 /**
- * Error mapping for the activity-log, suggestion-interaction, friends and public
- * profile endpoints only; the older controllers keep their existing behavior.
+ * Error mapping for the activity-log, suggestion-interaction, friends, public
+ * profile and profile view endpoints only; the older controllers keep their existing behavior.
  */
 @RestControllerAdvice(assignableTypes = {
         ActivityLogController.class,
         SuggestionInteractionController.class,
         FriendController.class,
-        PublicProfileController.class
+        PublicProfileController.class,
+        ProfileViewController.class
 })
 public class NewApiExceptionHandler {
 

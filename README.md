@@ -110,6 +110,14 @@ All routes require `Authorization: Bearer <Firebase ID token>` (always, even wit
 | GET | `/api/users/{uid}/badges` | Ids of the unlocked achievements (`users/{uid}/achievements`), `[]` if none |
 | PUT | `/api/users/me/profile` | Body `{"displayName"?, "photoUrl"?}`. Writes only the fields sent (`null` means not sent, blank is `400`). `204` |
 
+## Profile views (BQ19)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/users/me/profile-views` | Log that the token's user opened a friend's profile. Body `{"viewedAt": <epoch ms>}`; server time if missing or `<= 0`. `204`; `401` without a valid token (always required) |
+
+Stored in `users/{uid}/profileViews/{autoId}` with only `viewedAt`. The visited user is never stored, on purpose: BQ19 only needs how many visits each user makes.
+
 ## Catalog, suggestion interactions and activity logs (BQ12)
 
 Contract for the apps: [`docs/contracts/activity-logs-and-interactions.md`](docs/contracts/activity-logs-and-interactions.md).
