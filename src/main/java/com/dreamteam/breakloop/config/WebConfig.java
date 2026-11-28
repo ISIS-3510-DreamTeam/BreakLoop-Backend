@@ -33,7 +33,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns(
                         "/api/users/{uid}/public-profile",
                         "/api/users/{uid}/badges",
-                        "/api/users/me/profile");
+                        "/api/users/me/profile",
+                        "/api/users/me/profile-views");
 
         if (!authEnabled) {
             return;
