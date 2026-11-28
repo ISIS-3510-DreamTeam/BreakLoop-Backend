@@ -1,3 +1,4 @@
+
 package com.dreamteam.breakloop.model;
 
 public class FocusSession {
@@ -8,6 +9,8 @@ public class FocusSession {
     private String type;
     private String status;
     private int xpEarned;
+    private int recoveryCount;
+    private Long lastRecoveredAt;
 
     public FocusSession() {
     }
@@ -18,13 +21,17 @@ public class FocusSession {
             int duration,
             String type,
             String status,
-            int xpEarned) {
+            int xpEarned,
+            int recoveryCount,
+            Long lastRecoveredAt) {
         this.id = id;
         this.startTime = startTime;
         this.duration = duration;
         this.type = type;
         this.status = status;
         this.xpEarned = xpEarned;
+        this.recoveryCount = recoveryCount;
+        this.lastRecoveredAt = lastRecoveredAt;
     }
 
     public String getId() {
@@ -73,5 +80,21 @@ public class FocusSession {
 
     public void setXpEarned(int xpEarned) {
         this.xpEarned = xpEarned;
+    }
+
+    public int getRecoveryCount() {
+        return recoveryCount;
+    }
+
+    public void setRecoveryCount(int recoveryCount) {
+        this.recoveryCount = recoveryCount;
+    }
+
+    public Long getLastRecoveredAt() {
+        return lastRecoveredAt;
+    }
+
+    public void setLastRecoveredAt(Long lastRecoveredAt) {
+        this.lastRecoveredAt = lastRecoveredAt;
     }
 }
