@@ -152,6 +152,16 @@ public class FirebaseFriendRepository implements FriendRepository {
     }
 
     @Override
+    public boolean isFriend(String uid, String friendUid) {
+        try {
+            return friend(uid, friendUid).get().get().exists();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error checking friendship", e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Optional<String>> findDisplayName(String uid) {
         return toFuture(user(uid).get(), document -> Optional.ofNullable(
                 document.exists() ? document.getString("displayName") : null));

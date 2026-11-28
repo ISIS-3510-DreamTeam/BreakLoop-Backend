@@ -100,6 +100,16 @@ curl http://localhost:8080/api/users/$UID/friends \
 
 Tests without Firebase credentials: `mvn "-Dtest=FriendCodeGeneratorTest,FriendServiceTest,FriendControllerTest,FriendsAuthWiringTest" test`
 
+## Public profile
+
+All routes require `Authorization: Bearer <Firebase ID token>` (always, even with `breakloop.auth.enabled=false`). `me` is the token's user. Reads are allowed to the user and their friends: `401` without a valid token, `404` if `users/{uid}` does not exist, `403` otherwise.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/users/{uid}/public-profile` | `{ uid, displayName, photoUrl, streak, petLevel }`. `streak` and `petLevel` come from `users/{uid}/progress/current`, as in the friends list |
+| GET | `/api/users/{uid}/badges` | Ids of the unlocked achievements (`users/{uid}/achievements`), `[]` if none |
+| PUT | `/api/users/me/profile` | Body `{"displayName"?, "photoUrl"?}`. Writes only the fields sent (`null` means not sent, blank is `400`). `204` |
+
 ## Catalog, suggestion interactions and activity logs (BQ12)
 
 Contract for the apps: [`docs/contracts/activity-logs-and-interactions.md`](docs/contracts/activity-logs-and-interactions.md).

@@ -25,6 +25,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
 
+        // Registered even with auth disabled: the access rule of these routes
+        // needs to know who is asking.
+        registry
+                .addInterceptor(FirebaseAuthInterceptor
+                        .authenticationOnly(firebaseAuth::getObject))
+                .addPathPatterns(
+                        "/api/users/{uid}/public-profile",
+                        "/api/users/{uid}/badges",
+                        "/api/users/me/profile");
+
         if (!authEnabled) {
             return;
         }

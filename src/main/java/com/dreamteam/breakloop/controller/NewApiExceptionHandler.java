@@ -1,6 +1,7 @@
 package com.dreamteam.breakloop.controller;
 
 import com.dreamteam.breakloop.exception.ConflictException;
+import com.dreamteam.breakloop.exception.ForbiddenException;
 import com.dreamteam.breakloop.exception.NotFoundException;
 import com.dreamteam.breakloop.exception.RequestValidationException;
 import org.springframework.http.HttpStatus;
@@ -13,13 +14,14 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.util.Map;
 
 /**
- * Error mapping for the activity-log, suggestion-interaction and friends endpoints
- * only; the older controllers keep their existing behavior.
+ * Error mapping for the activity-log, suggestion-interaction, friends and public
+ * profile endpoints only; the older controllers keep their existing behavior.
  */
 @RestControllerAdvice(assignableTypes = {
         ActivityLogController.class,
         SuggestionInteractionController.class,
-        FriendController.class
+        FriendController.class,
+        PublicProfileController.class
 })
 public class NewApiExceptionHandler {
 
@@ -47,6 +49,12 @@ public class NewApiExceptionHandler {
     public ResponseEntity<Map<String, String>> handleNotFound(
             NotFoundException e) {
         return error(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String, String>> handleForbidden(
+            ForbiddenException e) {
+        return error(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
     @ExceptionHandler(ConflictException.class)

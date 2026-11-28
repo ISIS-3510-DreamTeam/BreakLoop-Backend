@@ -32,6 +32,9 @@ public interface FriendRepository {
 
     List<String> findFriendUids(String uid);
 
+    /** True if {@code users/{uid}/friends/{friendUid}} exists. */
+    boolean isFriend(String uid, String friendUid);
+
     /** Empty if the user document or its displayName is missing. */
     CompletableFuture<Optional<String>> findDisplayName(String uid);
 
